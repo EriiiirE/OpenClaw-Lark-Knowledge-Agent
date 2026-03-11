@@ -1,0 +1,35 @@
+{
+  "course_meta": {
+    "title": "万维钢·精英日课6",
+    "url": "https://www.dedao.cn/course/demo",
+    "promo_markers": [
+      "万维钢·精英日课6",
+      "精英日课6",
+      "下载得到",
+      "得到APP",
+      "扫码",
+      "订阅",
+      "课程宣传"
+    ]
+  },
+  "entries": [
+    {
+      "id": "1",
+      "title": "《再看一眼》1：习惯化和去习惯化",
+      "url": "https://www.dedao.cn/article/1",
+      "order": 1,
+      "raw_topic": "再看一眼",
+      "assigned_topic": "再看一眼",
+      "is_qa": false
+    },
+    {
+      "id": "2",
+      "title": "问答：如何理解去习惯化",
+      "url": "https://www.dedao.cn/article/2",
+      "order": 2,
+      "raw_topic": null,
+      "assigned_topic": "再看一眼",
+      "is_qa": true
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+pyyaml
+jieba
+rank-bm25
+faiss-cpu
+sentence-transformers
+scikit-learn
+numpy
+streamlit
+requests
