@@ -8,11 +8,28 @@ import requests
 from requests import RequestException
 
 from agent_types import ChatMessage
-from settings import OPENAI_API_KEY_ENV, OPENAI_BASE_URL_ENV, OPENAI_MODEL_ENV
+from settings import OPENAI_API_KEY_ENV, OPENAI_BASE_URL_ENV, OPENAI_MODEL_ENV, RUNTIME
 
 
 def llm_available() -> bool:
     return all(os.getenv(name) for name in [OPENAI_API_KEY_ENV, OPENAI_BASE_URL_ENV, OPENAI_MODEL_ENV])
+
+
+def describe_generation_runtime() -> dict:
+    base_url = os.getenv(OPENAI_BASE_URL_ENV, "").strip()
+    model_name = os.getenv(OPENAI_MODEL_ENV, "").strip()
+    provider = "openai-compatible"
+    if "dashscope" in base_url.lower():
+        provider = "dashscope"
+    elif "siliconflow" in base_url.lower():
+        provider = "siliconflow"
+    return {
+        "configured": llm_available(),
+        "provider": provider,
+        "base_url": base_url,
+        "model_name": model_name,
+        "enabled": bool(RUNTIME.generation.enabled),
+    }
 
 
 def _curl_chat(payload: dict) -> str:
@@ -67,12 +84,20 @@ def _post_chat(messages: list[dict], temperature: float = 0.1) -> str:
         return _curl_chat(payload)
 
 
+def chat_text(messages: list[dict], temperature: float = 0.1) -> str:
+    return _post_chat(messages, temperature=temperature)
+
+
 def _parse_json_response(raw_text: str) -> dict:
     stripped = raw_text.strip()
     if stripped.startswith("```"):
         lines = [line for line in stripped.splitlines() if not line.strip().startswith("```")]
         stripped = "\n".join(lines).strip()
     return json.loads(stripped)
+
+
+def chat_json(messages: list[dict], temperature: float = 0.1) -> dict:
+    return _parse_json_response(chat_text(messages, temperature=temperature))
 
 
 def _coerce_bool(value) -> bool:
@@ -102,7 +127,7 @@ def rewrite_query_with_llm(history: list[ChatMessage], user_query: str) -> str:
         f"user: {user_query}"
     )
     try:
-        payload = _parse_json_response(_post_chat([{"role": "user", "content": prompt}], temperature=0.0))
+        payload = chat_json([{"role": "user", "content": prompt}], temperature=0.0)
         return payload.get("standalone_query") or user_query
     except Exception:
         return user_query
@@ -145,7 +170,7 @@ def generate_answer(
         f"提炼线索:\n{guidance or '无'}\n\n"
         f"材料:\n{chr(10).join(context_parts)}"
     )
-    raw_text = _post_chat([{"role": "user", "content": prompt}], temperature=0.1)
+    raw_text = chat_text([{"role": "user", "content": prompt}], temperature=0.1)
     payload = _parse_json_response(raw_text)
     answer = payload.get("answer", "").strip() or "现有材料不足以确定。"
     if "[" not in answer and evidence:

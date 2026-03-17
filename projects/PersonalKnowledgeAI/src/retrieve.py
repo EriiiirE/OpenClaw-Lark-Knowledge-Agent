@@ -48,6 +48,9 @@ def _load_faiss_scores(query_embedding: np.ndarray, total_chunks: int, candidate
 
 
 def _query_backend(vector_data: dict) -> str | None:
+    backend_id = str(vector_data.get("backend_id", "")).lower()
+    if backend_id:
+        return backend_id
     model_name = str(vector_data.get("model_name", "")).lower()
     if model_name == "hashing-char-ngram":
         return "hashing"

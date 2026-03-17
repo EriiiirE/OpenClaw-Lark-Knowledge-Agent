@@ -7,3 +7,7 @@ scikit-learn
 numpy
 streamlit
 requests
+fastapi
+uvicorn
+mcp
+pymilvus

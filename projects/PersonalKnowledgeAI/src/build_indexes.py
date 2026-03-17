@@ -34,6 +34,7 @@ def build_vector_index(chunks: list[ChunkRecord]) -> tuple[dict, np.ndarray, obj
     metadata = {
         "chunk_ids": [chunk.chunk_id for chunk in chunks],
         "model_name": embedding_result.model_name,
+        "backend_id": getattr(embedding_result, "backend_id", ""),
         "dimension": int(embeddings.shape[1]) if embeddings.ndim == 2 and embeddings.size else 0,
         "index_type": "faiss" if faiss is not None else "array",
     }

@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-import json
-
 import streamlit as st
 
-from agent import answer_question
-from agent_types import ChatMessage, SearchOptions
+from agent_types import ChatMessage
 from chat_state import (
     append_assistant_message,
     append_user_message,
@@ -14,22 +11,9 @@ from chat_state import (
     reset_chat_session,
     update_active_filters,
 )
-from models import ChunkRecord
 from preflight import run_preflight
+from rag_pipeline import ask, sources
 from rag_answer import llm_available
-from settings import PATHS
-
-
-def load_chunks() -> list[ChunkRecord]:
-    chunks: list[ChunkRecord] = []
-    if not PATHS.chunks_path.exists():
-        return chunks
-    for line in PATHS.chunks_path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        data = json.loads(line)
-        chunks.append(ChunkRecord(**data))
-    return chunks
 
 
 def render_assistant_metadata(message: ChatMessage, show_debug: bool) -> None:
@@ -77,21 +61,21 @@ def main() -> None:
             st.write(f"- {issue}")
         return
 
-    chunks = load_chunks()
-    if not chunks:
+    source_catalog = sources()
+    if not source_catalog["source_count"] and not status.stats.get("chunks"):
         st.error("还没有可用的 chunks.jsonl，请先完成构建。")
         return
 
     ensure_chat_session(st.session_state)
-    sources = sorted({chunk.source for chunk in chunks})
-    categories = sorted({chunk.primary_category for chunk in chunks if chunk.primary_category})
-    topic_tags = sorted({tag for chunk in chunks for tag in chunk.topic_tags})
-    attribute_tags = sorted({tag for chunk in chunks for tag in chunk.attribute_tags})
-    series_list = sorted({chunk.series for chunk in chunks})
+    sources_list = source_catalog["sources"]
+    categories = source_catalog["primary_categories"]
+    topic_tags = source_catalog["topic_tags"]
+    attribute_tags = source_catalog["attribute_tags"]
+    series_list = source_catalog["series"]
 
     with st.sidebar:
         st.subheader("知识范围")
-        source_filter = st.selectbox("来源", ["全部"] + sources)
+        source_filter = st.selectbox("来源", ["全部"] + sources_list)
         series_filter = st.selectbox("series", ["全部"] + series_list)
         primary_filter = st.selectbox("一级标题", ["全部"] + categories)
         topic_filter = st.selectbox("主题标签", ["全部"] + topic_tags)
@@ -142,23 +126,15 @@ def main() -> None:
     with st.chat_message("user"):
         st.markdown(user_query)
 
-    options = SearchOptions(
-        top_k=top_k,
-        alpha=alpha,
-        filters=filters,
-        candidate_pool=max(top_k * 4, 24),
-        expand_neighbors=True,
-        max_context_chunks=8,
-        max_context_chars=7000,
-    )
     with st.chat_message("assistant"):
         with st.spinner("正在检索并生成回答..."):
-            response = answer_question(
-                user_query=user_query,
-                chunks=chunks,
-                history=history,
-                options=options,
+            response = ask(
+                query=user_query,
+                filters=filters,
+                top_k=top_k,
+                alpha=alpha,
                 prefer_llm=(mode == "LLM 增强回答"),
+                history=history,
             )
         st.markdown(response.answer_markdown)
         render_assistant_metadata(ChatMessage.create(role="assistant", content=response.answer_markdown, metadata=response.to_dict()), show_debug)
